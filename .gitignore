@@ -1,0 +1,57 @@
+# Python
+# Byte-compiled / optimized files
+__pycache__/
+*.py[cod]
+# C extensions
+*.so
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.whl
+# Virtual environment
+.venv/
+venv/
+env/
+# Environment variables
+.env
+.flaskenv
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+# Unit test / coverage reports
+.tox/
+.coverage
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.rpt2_cache/
+.mypy_cache/
+
+# Jupyter Notebook
+# Ignore checkpoint files
+.ipynb_checkpoints/
+# Optional: Ignore all notebook output changes (requires nbdime for better diffs/merges)
+# Uncomment the following line to ignore all .ipynb files
+# *.ipynb
+
+# Visual Studio Code
+# VS Code directory for workspace settings
+.vscode/
+# Local History (VS Code Extension)
+.history/
+
+# Operating System Files
+.DS_Store # macOS
+Thumbs.db # Windows
