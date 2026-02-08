@@ -3,4 +3,3 @@ tensorflow==2.15.0
 mediapipe==0.10.21
 mediapipe-model-maker==0.2.1.3
 ml_dtypes==0.5.4
-cv2_enumerate_cameras==1.3.3
