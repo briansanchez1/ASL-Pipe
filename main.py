@@ -1,6 +1,5 @@
-from operator import index
 import sys
-from PySide6.QtWidgets import QApplication,QWidget, QVBoxLayout, QComboBox, QLabel
+from PySide6.QtWidgets import QApplication,QWidget, QVBoxLayout, QHBoxLayout, QComboBox, QLabel, QPushButton
 from PySide6.QtMultimedia import QCamera, QMediaCaptureSession, QMediaDevices
 from PySide6.QtMultimediaWidgets import QVideoWidget
 from PySide6.QtCore import Qt
@@ -20,6 +19,11 @@ class MainWindow(QWidget):
             self.on_camera_changed
         )
         
+        # Refresh Button
+        self.refresh_button = QPushButton()
+        self.refresh_button.setText(("Refresh list"))
+        self.refresh_button.clicked.connect(self.populate_cameras)
+        
         # Camera Output - Placeholder for now until MediaPipe and OpenCV are integrated
         self.camera = None
         self.capture_session = QMediaCaptureSession()
@@ -32,13 +36,14 @@ class MainWindow(QWidget):
         self.output_label.setAlignment(Qt.AlignCenter)
         self.output_label.setStyleSheet("font-size: 14px;")
 
+        top = QHBoxLayout()
+        top.addWidget(self.camera_dropdown)
+        top.addWidget(self.refresh_button)
+        
         layout = QVBoxLayout(self)
-        layout.addWidget(self.camera_dropdown)
+        layout.addLayout(top)
         layout.addWidget(self.video_widget)
         layout.addWidget(self.output_label)
-        if self.camera_devices:
-            self.start_camera(0)
-            self.camera_dropdown.setPlaceholderText(self.camera_devices[0].description())
 
     def populate_cameras(self):
         """
@@ -49,7 +54,8 @@ class MainWindow(QWidget):
         if not self.camera_devices:
             self.camera_dropdown.addItem("No cameras found")
             return
-
+        
+        self.camera_devices = QMediaDevices.videoInputs()
         for device in self.camera_devices:
             self.camera_dropdown.addItem(device.description())
 
@@ -62,6 +68,8 @@ class MainWindow(QWidget):
 
         device = self.camera_devices[index]
         self.camera = QCamera(device)
+        
+        self.camera_dropdown.setPlaceholderText(self.camera_devices[index].description())
         self.capture_session.setCamera(self.camera)
         self.camera.start()
 
