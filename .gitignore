@@ -52,6 +52,13 @@ coverage.xml
 # Local History (VS Code Extension)
 .history/
 
+# JetBrains IDEs
+# User local IDEA configuration files
+.idea/
+.run/
+# IntelliJ project
+*.iml
+
 # Operating System Files
 .DS_Store # macOS
 Thumbs.db # Windows
