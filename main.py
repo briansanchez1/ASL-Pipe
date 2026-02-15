@@ -1,8 +1,9 @@
 import sys
 
-from PySide6.QtCore import Qt
-from PySide6.QtMultimedia import QCamera, QMediaCaptureSession, QMediaDevices
-from PySide6.QtMultimediaWidgets import QVideoWidget
+import cv2
+from PySide6.QtCore import Qt, QSize, QTimer
+from PySide6.QtGui import QPixmap, QImage, QColor
+from PySide6.QtMultimedia import QMediaDevices
 from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QComboBox, QLabel, QPushButton
 
 
@@ -15,6 +16,7 @@ class MainWindow(QWidget):
         # Dropdown Selection
         self.camera_dropdown = QComboBox()
         self.camera_dropdown.setPlaceholderText("Select a camera")
+        # FIXME: Some video inputs that are returned by this function aren't recognized by OpenCV
         self.camera_devices = QMediaDevices.videoInputs()
         self.populate_cameras()
         self.camera_dropdown.currentIndexChanged.connect(
@@ -28,10 +30,9 @@ class MainWindow(QWidget):
 
         # Camera Output - Placeholder for now until MediaPipe and OpenCV are integrated
         self.camera = None
-        self.capture_session = QMediaCaptureSession()
-        self.video_widget = QVideoWidget()
-        self.capture_session.setVideoOutput(self.video_widget)
-        self.video_widget.setMinimumSize(400, 400)
+        self.video_size = QSize(400, 400)
+        self.image_label = QLabel()
+        self.image_label.setMinimumSize(self.video_size)
 
         # MediaPipe Model Output - also placeholder for now
         self.output_label = QLabel("MediaPipe output will appear here")
@@ -44,8 +45,12 @@ class MainWindow(QWidget):
 
         layout = QVBoxLayout(self)
         layout.addLayout(top)
-        layout.addWidget(self.video_widget)
+        layout.addWidget(self.image_label)
         layout.addWidget(self.output_label)
+
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.display_video_stream)
+        self.timer.start(30)
 
     def populate_cameras(self):
         """
@@ -66,14 +71,13 @@ class MainWindow(QWidget):
         Start the camera based on the selected index
         """
         if self.camera:
-            self.camera.stop()
+            self.camera.release()
 
-        device = self.camera_devices[index]
-        self.camera = QCamera(device)
+        self.camera = cv2.VideoCapture(index)
+        self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, self.video_size.width())
+        self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, self.video_size.height())
 
         self.camera_dropdown.setPlaceholderText(self.camera_devices[index].description())
-        self.capture_session.setCamera(self.camera)
-        self.camera.start()
 
     def on_camera_changed(self, index: int):
         """ 
@@ -84,6 +88,21 @@ class MainWindow(QWidget):
 
         self.start_camera(index)
         self.camera_dropdown.setPlaceholderText(self.camera_devices[index].description())
+
+    def display_video_stream(self):
+        """Read frame from camera and repaint QLabel widget.
+        """
+        if self.camera:
+            _, frame = self.camera.read()
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            frame = cv2.flip(frame, 1)
+            image = QImage(frame, frame.shape[1], frame.shape[0],
+                           frame.strides[0], QImage.Format.Format_RGB888)
+            self.image_label.setPixmap(QPixmap.fromImage(image))
+        else:
+            image = QPixmap(self.image_label.size())
+            QPixmap.fill(image, QColor())
+            self.image_label.setPixmap(image)
 
 
 if __name__ == "__main__":
