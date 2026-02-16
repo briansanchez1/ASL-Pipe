@@ -1,6 +1,6 @@
 import sys
-
 import cv2
+from cv2_enumerate_cameras import enumerate_cameras
 from PySide6.QtCore import Qt, QSize, QTimer
 from PySide6.QtGui import QPixmap, QImage, QColor
 from PySide6.QtMultimedia import QMediaDevices
@@ -16,8 +16,6 @@ class MainWindow(QWidget):
         # Dropdown Selection
         self.camera_dropdown = QComboBox()
         self.camera_dropdown.setPlaceholderText("Select a camera")
-        # FIXME: Some video inputs that are returned by this function aren't recognized by OpenCV
-        self.camera_devices = QMediaDevices.videoInputs()
         self.populate_cameras()
         self.camera_dropdown.currentIndexChanged.connect(
             self.on_camera_changed
@@ -56,20 +54,26 @@ class MainWindow(QWidget):
         """
         Fill the camera list dropdown with available camera devices
         """
+        self.camera = None
         self.camera_dropdown.clear()
-
-        if not self.camera_devices:
+        cameras = enumerate_cameras()
+        
+        if not cameras:
             self.camera_dropdown.addItem("No cameras found")
             return
 
-        self.camera_devices = QMediaDevices.videoInputs()
-        for device in self.camera_devices:
-            self.camera_dropdown.addItem(device.description())
+        for camera in cameras:
+            self.camera_dropdown.addItem(
+                f"{camera.name}",
+                camera.index,
+            )
+            
 
     def start_camera(self, index: int):
         """
         Start the camera based on the selected index
         """
+        self.camera = None
         if self.camera:
             self.camera.release()
 
@@ -77,18 +81,15 @@ class MainWindow(QWidget):
         self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, self.video_size.width())
         self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, self.video_size.height())
 
-        self.camera_dropdown.setPlaceholderText(self.camera_devices[index].description())
 
     def on_camera_changed(self, index: int):
         """ 
         Handle camera selection changes from the dropdown
         """
-        if index < 0 or index >= len(self.camera_devices):
+        if index < 0:
             return
-
         self.start_camera(index)
-        self.camera_dropdown.setPlaceholderText(self.camera_devices[index].description())
-
+        
     def display_video_stream(self):
         """Read frame from camera and repaint QLabel widget.
         """
