@@ -62,3 +62,4 @@ coverage.xml
 # Operating System Files
 .DS_Store # macOS
 Thumbs.db # Windows
+.DS_Store
