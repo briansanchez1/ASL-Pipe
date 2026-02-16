@@ -17,9 +17,7 @@ class MainWindow(QWidget):
         self.camera_dropdown = QComboBox()
         self.camera_dropdown.setPlaceholderText("Select a camera")
         self.populate_cameras()
-        self.camera_dropdown.currentIndexChanged.connect(
-            self.on_camera_changed
-        )
+        self.camera_dropdown.currentIndexChanged.connect(self.start_camera)
 
         # Refresh Button
         self.refresh_button = QPushButton()
@@ -68,27 +66,21 @@ class MainWindow(QWidget):
                 camera.index,
             )
             
-
-    def start_camera(self, index: int):
+    def start_camera(self):
         """
         Start the camera based on the selected index
         """
-        self.camera = None
+        index = self.camera_dropdown.currentData()
+        
+        if index is None or index < 0:
+            return
+        
         if self.camera:
             self.camera.release()
 
         self.camera = cv2.VideoCapture(index)
         self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, self.video_size.width())
         self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, self.video_size.height())
-
-
-    def on_camera_changed(self, index: int):
-        """ 
-        Handle camera selection changes from the dropdown
-        """
-        if index < 0:
-            return
-        self.start_camera(index)
         
     def display_video_stream(self):
         """Read frame from camera and repaint QLabel widget.
