@@ -6,5 +6,5 @@ tf-models-official<2.11
 mediapipe==0.10.10
 mediapipe-model-maker==0.1.0.1
 pyside6==6.10.2
-opencv-python
+opencv-python<=4.11.0.86
 cv2_enumerate_cameras

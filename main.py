@@ -1,13 +1,39 @@
 import sys
+import time
 
 import cv2
+import mediapipe as mp
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QPixmap, QImage, QColorConstants
 from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QComboBox, QLabel, QPushButton
 from cv2_enumerate_cameras import enumerate_cameras
+from mediapipe.framework.formats import landmark_pb2
+from mediapipe.tasks import python
+from mediapipe.tasks.python import vision
+
+mp_hands = mp.solutions.hands
+mp_drawing = mp.solutions.drawing_utils
+mp_drawing_styles = mp.solutions.drawing_styles
+
+# Global variables to calculate FPS
+COUNTER, FPS = 0, 0
+START_TIME = time.time()
 
 
 class MainWindow(QWidget):
+    # Visualization parameters
+    row_size = 50  # pixels
+    left_margin = 24  # pixels
+    text_color = (0, 0, 0)  # black
+    font_size = 1
+    font_thickness = 1
+    fps_avg_frame_count = 10
+
+    # Label box parameters
+    label_text_color = (255, 255, 255)  # white
+    label_font_size = 1
+    label_thickness = 2
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle("ASL Pipe")
@@ -23,7 +49,7 @@ class MainWindow(QWidget):
         self.refresh_button.setText("Refresh list")
         self.refresh_button.clicked.connect(self.populate_cameras)
 
-        # Camera Output - Placeholder for now until MediaPipe and OpenCV are integrated
+        # Camera Output
         self.camera = None
         self.image_label = QLabel()
         self.image_label.setMinimumSize(400, 400)
@@ -31,7 +57,7 @@ class MainWindow(QWidget):
 
         self.populate_cameras()
 
-        # MediaPipe Model Output - also placeholder for now
+        # MediaPipe Model Output - Placeholder for now
         self.output_label = QLabel("MediaPipe output will appear here")
         self.output_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.output_label.setStyleSheet("font-size: 14px;")
@@ -48,6 +74,32 @@ class MainWindow(QWidget):
         self.timer = QTimer()
         self.timer.timeout.connect(self.display_video_stream)
         self.timer.start(30)
+
+        self.recognition_frame = None
+        self.recognition_result_list = []
+
+        def save_result(result: vision.GestureRecognizerResult,
+                        unused_output_image: mp.Image, timestamp_ms: int):
+            global FPS, COUNTER, START_TIME
+
+            # Calculate the FPS
+            if COUNTER % self.fps_avg_frame_count == 0:
+                FPS = self.fps_avg_frame_count / (time.time() - START_TIME)
+                START_TIME = time.time()
+
+            self.recognition_result_list.append(result)
+            COUNTER += 1
+
+        # Initialize the gesture recognizer model
+        base_options = python.BaseOptions(model_asset_path="Model Training/exported_model/gesture_recognizer.task")
+        options = vision.GestureRecognizerOptions(base_options=base_options,
+                                                  running_mode=vision.RunningMode.LIVE_STREAM,
+                                                  num_hands=1,
+                                                  min_hand_detection_confidence=0.5,
+                                                  min_hand_presence_confidence=0.5,
+                                                  min_tracking_confidence=0.5,
+                                                  result_callback=save_result)
+        self.recognizer = vision.GestureRecognizer.create_from_options(options)
 
     def populate_cameras(self):
         """
@@ -89,10 +141,83 @@ class MainWindow(QWidget):
         if self.camera:
             _, frame = self.camera.read()
             frame = cv2.flip(frame, 1)
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            image = QImage(frame, frame.shape[1], frame.shape[0],
-                           frame.strides[0], QImage.Format.Format_RGB888)
-            self.image_label.setPixmap(QPixmap.fromImage(image))
+            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
+
+            # Run gesture recognizer using the model.
+            self.recognizer.recognize_async(mp_image, time.time_ns() // 1_000_000)
+
+            # Show the FPS
+            fps_text = 'FPS = {:.1f}'.format(FPS)
+            text_location = (self.left_margin, self.row_size)
+            current_frame = frame
+            cv2.putText(current_frame, fps_text, text_location, cv2.FONT_HERSHEY_DUPLEX,
+                        self.font_size, self.text_color, self.font_thickness, cv2.LINE_AA)
+
+            if self.recognition_result_list:
+                # Draw landmarks and write the text for each hand.
+                for hand_index, hand_landmarks in enumerate(
+                        self.recognition_result_list[0].hand_landmarks):
+                    # Calculate the bounding box of the hand
+                    x_min = min([landmark.x for landmark in hand_landmarks])
+                    y_min = min([landmark.y for landmark in hand_landmarks])
+                    y_max = max([landmark.y for landmark in hand_landmarks])
+
+                    # Convert normalized coordinates to pixel values
+                    frame_height, frame_width = current_frame.shape[:2]
+                    x_min_px = int(x_min * frame_width)
+                    y_min_px = int(y_min * frame_height)
+                    y_max_px = int(y_max * frame_height)
+
+                    # Get gesture classification results
+                    if self.recognition_result_list[0].gestures:
+                        gesture = self.recognition_result_list[0].gestures[hand_index]
+                        category_name = gesture[0].category_name
+                        score = round(gesture[0].score, 2)
+                        result_text = f'{category_name} ({score})'
+
+                        # Compute text size
+                        text_size = \
+                            cv2.getTextSize(result_text, cv2.FONT_HERSHEY_DUPLEX, self.label_font_size,
+                                            self.label_thickness)[0]
+                        text_width, text_height = text_size
+
+                        # Calculate text position (above the hand)
+                        text_x = x_min_px
+                        text_y = y_min_px - 10  # Adjust this value as needed
+
+                        # Make sure the text is within the frame boundaries
+                        if text_y < 0:
+                            text_y = y_max_px + text_height
+
+                        # Draw the text
+                        cv2.putText(current_frame, result_text, (text_x, text_y),
+                                    cv2.FONT_HERSHEY_DUPLEX, self.label_font_size,
+                                    self.label_text_color, self.label_thickness, cv2.LINE_AA)
+
+                    # Draw hand landmarks on the frame
+                    hand_landmarks_proto = landmark_pb2.NormalizedLandmarkList()
+                    hand_landmarks_proto.landmark.extend([
+                        landmark_pb2.NormalizedLandmark(x=landmark.x, y=landmark.y,
+                                                        z=landmark.z) for landmark in
+                        hand_landmarks
+                    ])
+                    mp_drawing.draw_landmarks(
+                        current_frame,
+                        hand_landmarks_proto,
+                        mp_hands.HAND_CONNECTIONS,
+                        mp_drawing_styles.get_default_hand_landmarks_style(),
+                        mp_drawing_styles.get_default_hand_connections_style())
+
+                self.recognition_frame = current_frame
+                self.recognition_result_list.clear()
+
+            if self.recognition_frame is not None:
+                image = QImage(self.recognition_frame, self.recognition_frame.shape[1],
+                               self.recognition_frame.shape[0],
+                               self.recognition_frame.strides[0], QImage.Format.Format_BGR888)
+                self.image_label.setPixmap(QPixmap.fromImage(image))
         else:
             image = QPixmap(self.image_label.size())
             QPixmap.fill(image, QColorConstants.Black)
