@@ -1,10 +1,10 @@
 import sys
+
 import cv2
-from cv2_enumerate_cameras import enumerate_cameras
-from PySide6.QtCore import Qt, QSize, QTimer
+from PySide6.QtCore import Qt, QTimer, QSize
 from PySide6.QtGui import QPixmap, QImage, QColor
-from PySide6.QtMultimedia import QMediaDevices
 from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QComboBox, QLabel, QPushButton
+from cv2_enumerate_cameras import enumerate_cameras
 
 
 class MainWindow(QWidget):
@@ -16,7 +16,6 @@ class MainWindow(QWidget):
         # Dropdown Selection
         self.camera_dropdown = QComboBox()
         self.camera_dropdown.setPlaceholderText("Select a camera")
-        self.populate_cameras()
         self.camera_dropdown.currentIndexChanged.connect(self.start_camera)
 
         # Refresh Button
@@ -29,6 +28,8 @@ class MainWindow(QWidget):
         self.video_size = QSize(400, 400)
         self.image_label = QLabel()
         self.image_label.setMinimumSize(self.video_size)
+
+        self.populate_cameras()
 
         # MediaPipe Model Output - also placeholder for now
         self.output_label = QLabel("MediaPipe output will appear here")
@@ -52,10 +53,12 @@ class MainWindow(QWidget):
         """
         Fill the camera list dropdown with available camera devices
         """
+        if self.camera:
+            self.camera.release()
         self.camera = None
         self.camera_dropdown.clear()
         cameras = enumerate_cameras()
-        
+
         if not cameras:
             self.camera_dropdown.addItem("No cameras found")
             return
@@ -65,23 +68,23 @@ class MainWindow(QWidget):
                 f"{camera.name}",
                 camera.index,
             )
-            
+
     def start_camera(self):
         """
         Start the camera based on the selected index
         """
         index = self.camera_dropdown.currentData()
-        
+
         if index is None or index < 0:
             return
-        
+
         if self.camera:
             self.camera.release()
 
         self.camera = cv2.VideoCapture(index)
         self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, self.video_size.width())
         self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, self.video_size.height())
-        
+
     def display_video_stream(self):
         """Read frame from camera and repaint QLabel widget.
         """
