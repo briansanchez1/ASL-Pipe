@@ -1,8 +1,8 @@
 import sys
 
 import cv2
-from PySide6.QtCore import Qt, QTimer, QSize
-from PySide6.QtGui import QPixmap, QImage, QColor
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QPixmap, QImage, QColorConstants
 from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QComboBox, QLabel, QPushButton
 from cv2_enumerate_cameras import enumerate_cameras
 
@@ -25,9 +25,9 @@ class MainWindow(QWidget):
 
         # Camera Output - Placeholder for now until MediaPipe and OpenCV are integrated
         self.camera = None
-        self.video_size = QSize(400, 400)
         self.image_label = QLabel()
-        self.image_label.setMinimumSize(self.video_size)
+        self.image_label.setMinimumSize(400, 400)
+        self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.populate_cameras()
 
@@ -65,7 +65,7 @@ class MainWindow(QWidget):
 
         for camera in cameras:
             self.camera_dropdown.addItem(
-                f"{camera.name}",
+                camera.name,
                 camera.index,
             )
 
@@ -82,22 +82,20 @@ class MainWindow(QWidget):
             self.camera.release()
 
         self.camera = cv2.VideoCapture(index)
-        self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, self.video_size.width())
-        self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, self.video_size.height())
 
     def display_video_stream(self):
         """Read frame from camera and repaint QLabel widget.
         """
         if self.camera:
             _, frame = self.camera.read()
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             frame = cv2.flip(frame, 1)
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             image = QImage(frame, frame.shape[1], frame.shape[0],
                            frame.strides[0], QImage.Format.Format_RGB888)
             self.image_label.setPixmap(QPixmap.fromImage(image))
         else:
             image = QPixmap(self.image_label.size())
-            QPixmap.fill(image, QColor())
+            QPixmap.fill(image, QColorConstants.Black)
             self.image_label.setPixmap(image)
 
 
