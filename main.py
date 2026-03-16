@@ -58,7 +58,7 @@ class MainWindow(QWidget):
         self.populate_cameras()
 
         # MediaPipe Model Output - Placeholder for now
-        self.output_label = QLabel("MediaPipe output will appear here")
+        self.output_label = QLabel()
         self.output_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.output_label.setStyleSheet("font-size: 14px;")
 
@@ -101,6 +101,9 @@ class MainWindow(QWidget):
                                                   result_callback=save_result)
         self.recognizer = vision.GestureRecognizer.create_from_options(options)
 
+    def append_text(self, new_text):
+        self.output_label.setText(self.output_label.text() + new_text)
+
     def populate_cameras(self):
         """
         Fill the camera list dropdown with available camera devices
@@ -135,9 +138,14 @@ class MainWindow(QWidget):
 
         self.camera = cv2.VideoCapture(index)
 
+    confidence_timer = 0
+    prev_time = time.time()
+    prev_category_name = None
+
     def display_video_stream(self):
         """Read frame from camera and repaint QLabel widget.
         """
+        cur_time = time.time()
         if self.camera:
             _, frame = self.camera.read()
             frame = cv2.flip(frame, 1)
@@ -178,6 +186,11 @@ class MainWindow(QWidget):
                         score_rounded = round(score, 2)
                         result_text = f'{category_name} ({score_rounded})'.capitalize()
 
+                        # If the hand sign has changed since the previous recognition, reset the confidence timer
+                        if category_name != self.prev_category_name:
+                            self.prev_category_name = category_name
+                            self.confidence_timer = 0
+
                         # Color the on-screen confidence text based on how high the confidence is
                         text_color = self.label_text_color
                         if score >= 0.8:
@@ -185,6 +198,14 @@ class MainWindow(QWidget):
                             # When score = 1.0, factor = 1.0, and the text color is green
                             gradient_factor = (score - 0.8) / 0.2
                             text_color = (0, 255, 255 * (1 - gradient_factor))  # Green - high accuracy
+
+                            self.confidence_timer += cur_time - self.prev_time
+
+                            # If the confidence score has been >= 0.8 for at least 1 second,
+                            # append the symbol to the output and reset the confidence timer
+                            if self.confidence_timer >= 1:
+                                self.append_text(category_name)
+                                self.confidence_timer = 0
                         elif score >= 0.6:
                             # When score = 0.6, factor = 0.0, and the text color is self.label_text_color
                             # When score = 0.79999, factor = 1.0, and the text color is yellow
@@ -197,6 +218,12 @@ class MainWindow(QWidget):
                             text_color = (default_color_b * (1 - gradient_factor),
                                           default_color_g + (255 - default_color_g) * gradient_factor,
                                           default_color_r + (255 - default_color_r) * gradient_factor)  # Yellow - medium accuracy
+
+                            # Confidence isn't high enough, so reset the confidence timer
+                            self.confidence_timer = 0
+                        else:
+                            # Confidence isn't high enough, so reset the confidence timer
+                            self.confidence_timer = 0
 
                         # Compute text size
                         text_size = \
@@ -243,6 +270,7 @@ class MainWindow(QWidget):
             image = QPixmap(self.image_label.size())
             QPixmap.fill(image, QColorConstants.Black)
             self.image_label.setPixmap(image)
+        self.prev_time = cur_time
 
 
 if __name__ == "__main__":
