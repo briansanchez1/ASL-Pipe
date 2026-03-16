@@ -174,8 +174,29 @@ class MainWindow(QWidget):
                     if self.recognition_result_list[0].gestures:
                         gesture = self.recognition_result_list[0].gestures[hand_index]
                         category_name = gesture[0].category_name
-                        score = round(gesture[0].score, 2)
-                        result_text = f'{category_name} ({score})'
+                        score = gesture[0].score
+                        score_rounded = round(score, 2)
+                        result_text = f'{category_name} ({score_rounded})'.capitalize()
+
+                        # Color the on-screen confidence text based on how high the confidence is
+                        text_color = self.label_text_color
+                        if score >= 0.8:
+                            # When score = 0.8, factor = 0.0, and the text color is yellow
+                            # When score = 1.0, factor = 1.0, and the text color is green
+                            gradient_factor = (score - 0.8) / 0.2
+                            text_color = (0, 255, 255 * (1 - gradient_factor))  # Green - high accuracy
+                        elif score >= 0.6:
+                            # When score = 0.6, factor = 0.0, and the text color is self.label_text_color
+                            # When score = 0.79999, factor = 1.0, and the text color is yellow
+                            gradient_factor = (score - 0.6) / 0.2
+
+                            default_color_b = self.label_text_color[0]
+                            default_color_g = self.label_text_color[1]
+                            default_color_r = self.label_text_color[2]
+
+                            text_color = (default_color_b * (1 - gradient_factor),
+                                          default_color_g + (255 - default_color_g) * gradient_factor,
+                                          default_color_r + (255 - default_color_r) * gradient_factor)  # Yellow - medium accuracy
 
                         # Compute text size
                         text_size = \
@@ -194,7 +215,7 @@ class MainWindow(QWidget):
                         # Draw the text
                         cv2.putText(current_frame, result_text, (text_x, text_y),
                                     cv2.FONT_HERSHEY_DUPLEX, self.label_font_size,
-                                    self.label_text_color, self.label_thickness, cv2.LINE_AA)
+                                    text_color, self.label_thickness, cv2.LINE_AA)
 
                     # Draw hand landmarks on the frame
                     hand_landmarks_proto = landmark_pb2.NormalizedLandmarkList()
