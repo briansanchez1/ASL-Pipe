@@ -48,7 +48,12 @@ class MainWindow(QWidget):
         self.refresh_button = QPushButton()
         self.refresh_button.setText("Refresh list")
         self.refresh_button.clicked.connect(self.populate_cameras)
-
+ 
+        # Clear Output Button
+        self.clear_button = QPushButton()
+        self.clear_button.setText("Clear Output")
+        self.clear_button.clicked.connect(self.clear_output)
+        
         # Camera Output
         self.camera = None
         self.image_label = QLabel()
@@ -65,6 +70,7 @@ class MainWindow(QWidget):
         top = QHBoxLayout()
         top.addWidget(self.camera_dropdown)
         top.addWidget(self.refresh_button)
+        top.addWidget(self.clear_button)
 
         layout = QVBoxLayout(self)
         layout.addLayout(top)
@@ -104,6 +110,9 @@ class MainWindow(QWidget):
     def append_text(self, new_text):
         self.output_label.setText(self.output_label.text() + new_text)
 
+    def clear_output(self):
+        self.output_label.setText("")
+    
     def populate_cameras(self):
         """
         Fill the camera list dropdown with available camera devices
