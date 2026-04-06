@@ -121,12 +121,6 @@ class MainWindow(QWidget):
         self.image_label.setMinimumSize(400, 400)
         self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        # Let the label grow to fill available space
-        self.image_label.setSizePolicy(
-            self.image_label.sizePolicy().horizontalPolicy(),
-            self.image_label.sizePolicy().verticalPolicy(),
-        )
-
         self.populate_cameras()
 
         # MediaPipe Model Output
