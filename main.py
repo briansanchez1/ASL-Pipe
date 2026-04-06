@@ -1,5 +1,7 @@
 import sys
 import time
+from typing import Optional, cast
+
 import cv2
 import mediapipe as mp
 from PySide6.QtCore import Qt, QTimer
@@ -17,15 +19,15 @@ mp_drawing_styles = mp.solutions.drawing_styles
 
 class MotionTracker:
     def __init__(self, history_len=20):
-        self.history = []  # list of (x, y) normalized coords
-        self.history_len = history_len
+        self.history: list[tuple[int, int]] = []  # list of (x, y) normalized coords
+        self.history_len: int = history_len
 
     def update(self, x, y):
         self.history.append((x, y))
         if len(self.history) > self.history_len:
             self.history.pop(0)
 
-    def get_directions(self, threshold=0.015):
+    def get_directions(self, threshold=0.015) -> list[str]:
         """Returns list of direction strings from recent movement"""
         dirs = []
         for i in range(1, len(self.history)):
@@ -42,7 +44,7 @@ class MotionTracker:
                             "down-right" if (dy > 0 and dx > 0) else "other")
         return dirs
 
-    def detect_j(self):
+    def detect_j(self) -> bool:
         """
         Detect J: deliberate downward stroke followed immediately by a
         leftward/down-left hook.
@@ -63,7 +65,7 @@ class MotionTracker:
 
         return False
 
-    def detect_z(self):
+    def detect_z(self) -> bool:
         """Detect Z: right -> down-left -> right as consecutive collapsed steps."""
         dirs = self.get_directions()
         collapsed = [dirs[i] for i in range(len(dirs)) if i == 0 or dirs[i] != dirs[i - 1]]
@@ -114,7 +116,7 @@ class MainWindow(QWidget):
         self.clear_button.clicked.connect(self.clear_output)
 
         # Camera Output
-        self.camera = None
+        self.camera: Optional[cv2.VideoCapture] = None
         self.image_label = QLabel()
         self.image_label.setMinimumSize(400, 400)
         self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -146,8 +148,8 @@ class MainWindow(QWidget):
         self.timer.timeout.connect(self.display_video_stream)
         self.timer.start(30)  # ~30 fps
 
-        self.recognition_frame = None
-        self.recognition_result_list = []
+        self.recognition_frame: Optional[cv2.typing.MatLike] = None
+        self.recognition_result_list: list[vision.GestureRecognizerResult] = []
 
         def save_result(result: vision.GestureRecognizerResult,
                         unused_output_image: mp.Image, timestamp_ms: int):
@@ -165,9 +167,9 @@ class MainWindow(QWidget):
         self.recognizer = vision.GestureRecognizer.create_from_options(options)
         self.j_tracker = MotionTracker(history_len=25)
         self.z_tracker = MotionTracker(history_len=40)
-        self.motion_cooldown = 3  # prevent spam
+        self.motion_cooldown: int = 3  # prevent spam
 
-    def append_text(self, new_text):
+    def append_text(self, new_text: str):
         """Append new letter to output"""
         self.output_label.setText(self.output_label.text() + new_text)
 
@@ -202,9 +204,9 @@ class MainWindow(QWidget):
 
         self.camera = cv2.VideoCapture(index)
 
-    confidence_timer = 0
-    prev_time = time.time()
-    prev_category_name = None
+    confidence_timer: float = 0
+    prev_time: float = time.time()
+    prev_category_name: Optional[str] = None
 
     def display_video_stream(self):
         """Read frame from camera and repaint QLabel widget."""
@@ -242,9 +244,9 @@ class MainWindow(QWidget):
                         self.motion_cooldown -= 1
 
                     # Calculate the bounding box of the hand
-                    x_min = min([landmark.x for landmark in hand_landmarks])
-                    y_min = min([landmark.y for landmark in hand_landmarks])
-                    y_max = max([landmark.y for landmark in hand_landmarks])
+                    x_min = min([cast(float, landmark.x) for landmark in hand_landmarks])
+                    y_min = min([cast(float, landmark.y) for landmark in hand_landmarks])
+                    y_max = max([cast(float, landmark.z) for landmark in hand_landmarks])
 
                     # Convert normalized coordinates to pixel values
                     frame_height, frame_width = current_frame.shape[:2]
@@ -255,8 +257,8 @@ class MainWindow(QWidget):
                     # Get gesture classification results
                     if self.recognition_result_list[0].gestures:
                         gesture = self.recognition_result_list[0].gestures[hand_index]
-                        category_name = gesture[0].category_name
-                        score = gesture[0].score
+                        category_name = cast(str, gesture[0].category_name)
+                        score = cast(float, gesture[0].score)
                         score_rounded = round(score, 2)
                         result_text = f'{category_name} ({score_rounded})'.capitalize()
 
@@ -323,7 +325,7 @@ class MainWindow(QWidget):
                 label_w = self.image_label.width()
                 label_h = self.image_label.height()
                 image = QImage(
-                    self.recognition_frame,
+                    self.recognition_frame.data,
                     self.recognition_frame.shape[1],
                     self.recognition_frame.shape[0],
                     self.recognition_frame.strides[0],
