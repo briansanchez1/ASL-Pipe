@@ -29,8 +29,8 @@ class MotionTracker:
         """Returns list of direction strings from recent movement"""
         dirs = []
         for i in range(1, len(self.history)):
-            dx = self.history[i][0] - self.history[i-1][0]
-            dy = self.history[i][1] - self.history[i-1][1]
+            dx = self.history[i][0] - self.history[i - 1][0]
+            dy = self.history[i][1] - self.history[i - 1][1]
             if abs(dx) < threshold and abs(dy) < threshold:
                 continue
             if abs(dy) > abs(dx):
@@ -58,7 +58,7 @@ class MotionTracker:
         for i in range(len(collapsed) - 1):
             if collapsed[i] == "down" and collapsed[i + 1] in ("left", "down-left"):
                 total_dy = self.history[-1][1] - self.history[0][1]
-                if total_dy > 0.18:   # must have moved down at least 8% of frame height
+                if total_dy > 0.18:  # must have moved down at least 8% of frame height
                     return True
 
         return False
@@ -78,6 +78,7 @@ class MotionTracker:
 
     def reset(self):
         self.history.clear()
+
 
 class MainWindow(QWidget):
     # Visualization parameters
@@ -117,7 +118,7 @@ class MainWindow(QWidget):
         self.image_label = QLabel()
         self.image_label.setMinimumSize(400, 400)
         self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        
+
         # Let the label grow to fill available space
         self.image_label.setSizePolicy(
             self.image_label.sizePolicy().horizontalPolicy(),
@@ -222,9 +223,9 @@ class MainWindow(QWidget):
                 for hand_index, hand_landmarks in enumerate(
                         self.recognition_result_list[0].hand_landmarks):
                     # Track pinky tip for J and index tip for Z
-                    pinky = hand_landmarks[20]
+                    pinky_tip = hand_landmarks[20]
                     index_tip = hand_landmarks[8]
-                    self.j_tracker.update(pinky.x, pinky.y)
+                    self.j_tracker.update(pinky_tip.x, pinky_tip.y)
                     self.z_tracker.update(index_tip.x, index_tip.y)
 
                     # Check motion letters with cooldown so no spam
